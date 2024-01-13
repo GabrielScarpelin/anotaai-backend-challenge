@@ -7,6 +7,6 @@ export class CatalogsController {
 
   @Get()
   searchClientCatalog() {
-    return 'New catalog';
+    return 'Find catalog on S3 BUCKET';
   }
 }
