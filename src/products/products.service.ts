@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { randomUUID } from 'node:crypto';
@@ -8,21 +13,40 @@ import { Product } from '@prisma/client';
 @Injectable()
 export class ProductsService {
   constructor(private readonly prisma: PrismaService) {}
-  async create(createProductDto: CreateProductDto): Promise<Product | string> {
+  async create(
+    createProductDto: CreateProductDto,
+  ): Promise<{ success: boolean; erro: any; product: Product | null }> {
     try {
-      const product = await this.prisma.product.create({
-        data: {
-          id: randomUUID(),
-          title: createProductDto.title,
-          description: createProductDto.description,
-          price: createProductDto.price,
-          userId: createProductDto.userId,
-          categoryId: createProductDto.categoryId,
-        },
+      const category = await this.prisma.category.findUniqueOrThrow({
+        where: { id: createProductDto.categoryId },
       });
-      return product;
+      if (createProductDto.userId === category.userId) {
+        const product = await this.prisma.product.create({
+          data: {
+            id: randomUUID(),
+            title: createProductDto.title,
+            description: createProductDto.description,
+            price: createProductDto.price,
+            userId: category.userId,
+            categoryId: createProductDto.categoryId,
+          },
+        });
+        return {
+          success: true,
+          erro: null,
+          product,
+        };
+      } else {
+        throw new NotFoundException(
+          'Tried insert a product to a different user that the owner of the category',
+        );
+      }
     } catch (e) {
-      throw new BadRequestException(e);
+      throw new InternalServerErrorException({
+        success: false,
+        erro: e,
+        product: null,
+      });
     }
   }
 
@@ -37,30 +61,54 @@ export class ProductsService {
     }
   }
 
-  async findOne(id: string) {
+  async findOne(
+    id: string,
+  ): Promise<{ success: boolean; erro: any; product: Product }> {
     try {
-      const product = await this.prisma.product.findUnique({ where: { id } });
-      return product;
+      const product = await this.prisma.product.findUniqueOrThrow({
+        where: { id },
+      });
+      return {
+        success: true,
+        erro: null,
+        product,
+      };
     } catch (e) {
-      throw new BadRequestException(e);
+      throw new InternalServerErrorException({
+        success: false,
+        erro: e,
+        product: null,
+      });
     }
   }
 
-  async update(id: string, updateProductDto: UpdateProductDto) {
+  async update(
+    id: string,
+    updateProductDto: UpdateProductDto,
+  ): Promise<{ success: boolean; erro: any; product: Product }> {
     try {
-      const product = await this.findOne(id);
+      const product = await this.prisma.product.findUniqueOrThrow({
+        where: { id },
+      });
       const updated = await this.prisma.product.update({
         where: { id },
         data: {
           title: updateProductDto.title || product.title,
           description: updateProductDto.description || product.description,
           price: updateProductDto.price || product.price,
-          userId: updateProductDto.userId || product.userId,
         },
       });
-      return updated;
+      return {
+        success: true,
+        erro: null,
+        product: updated,
+      };
     } catch (e) {
-      throw new BadRequestException(e);
+      throw new InternalServerErrorException({
+        success: false,
+        erro: e,
+        product: null,
+      });
     }
   }
 
@@ -72,10 +120,10 @@ export class ProductsService {
         erro: null,
       };
     } catch (e) {
-      return {
+      throw new InternalServerErrorException({
         success: false,
         erro: e,
-      };
+      });
     }
   }
 }

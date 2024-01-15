@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { PrismaService } from 'src/prisma.service';
@@ -10,7 +10,7 @@ export class CategoriesService {
   constructor(private readonly prisma: PrismaService) {}
   async create(
     createCategoryDto: CreateCategoryDto,
-  ): Promise<Category | string> {
+  ): Promise<{ success: boolean; erro: any; category: Category | null }> {
     try {
       const category = await this.prisma.category.create({
         data: {
@@ -20,31 +20,45 @@ export class CategoriesService {
           userId: createCategoryDto.userId,
         },
       });
-      return category;
+      return {
+        success: true,
+        erro: null,
+        category,
+      };
     } catch (e) {
-      return e;
+      throw new InternalServerErrorException({
+        success: false,
+        erro: e,
+        category: null,
+      });
     }
   }
 
-  findAll() {
-    return `This action returns all categories`;
-  }
-
-  async findOne(id: string) {
+  async findOne(
+    id: string,
+  ): Promise<{ success: boolean; erro: any; category: Category | null }> {
     try {
       const category = await this.prisma.category.findUniqueOrThrow({
         where: { id },
       });
-      return category;
-    } catch (e) {
       return {
-        success: false,
-        erro: `${e.code} - No match found`,
+        success: true,
+        erro: null,
+        category,
       };
+    } catch (e) {
+      throw new InternalServerErrorException({
+        success: false,
+        erro: e,
+        category: null,
+      });
     }
   }
 
-  async update(id: string, updateCategoryDto: UpdateCategoryDto) {
+  async update(
+    id: string,
+    updateCategoryDto: UpdateCategoryDto,
+  ): Promise<{ success: boolean; erro: any; category: Category | null }> {
     try {
       const category = await this.prisma.category.findUniqueOrThrow({
         where: { id },
@@ -54,33 +68,39 @@ export class CategoriesService {
           id,
         },
         data: {
+          id,
           description: updateCategoryDto.description || category.description,
           title: updateCategoryDto.title || category.title,
           userId: updateCategoryDto.userId || category.userId,
         },
       });
-      return categoryUpdated;
+      return {
+        success: true,
+        erro: null,
+        category: categoryUpdated,
+      };
     } catch (e) {
       return {
         success: false,
         erro: e,
+        category: null,
       };
     }
   }
 
-  async remove(id: string) {
+  async remove(id: string): Promise<{ success: boolean; erro: any }> {
     try {
       await this.prisma.product.deleteMany({ where: { categoryId: id } });
       await this.prisma.category.delete({ where: { id } });
       return {
-        success: false,
+        success: true,
         erro: null,
       };
     } catch (e) {
-      return {
+      throw new InternalServerErrorException({
         success: false,
         erro: e,
-      };
+      });
     }
   }
 }

@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { PrismaService } from 'src/prisma.service';
@@ -30,25 +34,69 @@ export class UsersService {
     }
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} user`;
+  async findOne(id: string) {
+    try {
+      const user = await this.prisma.user.findUniqueOrThrow({ where: { id } });
+      return {
+        success: true,
+        erro: null,
+        user: {
+          id: user.id,
+          name: user.name,
+        },
+      };
+    } catch (e) {
+      throw new InternalServerErrorException({
+        success: false,
+        erro: e,
+        user: null,
+      });
+    }
   }
 
   async update(id: string, updateUserDto: UpdateUserDto) {
-    const user = await this.prisma.user.findUnique({ where: { id } });
-    const userUpdate = this.prisma.user.update({
-      where: { id },
-      data: {
-        id,
-        email: updateUserDto.email || user.email,
-        name: updateUserDto.name || user.name,
-        password: updateUserDto.password || user.password,
-      },
-    });
-    return userUpdate;
+    try {
+      const user = await this.prisma.user.findUnique({ where: { id } });
+      const userUpdated = await this.prisma.user.update({
+        where: { id },
+        data: {
+          id,
+          email: updateUserDto.email || user.email,
+          name: updateUserDto.name || user.name,
+          password: updateUserDto.password || user.password,
+        },
+      });
+      return {
+        success: true,
+        erro: null,
+        user: {
+          id: userUpdated.name,
+          email: userUpdated.email,
+        },
+      };
+    } catch (e) {
+      throw new InternalServerErrorException({
+        success: false,
+        erro: e,
+        user: null,
+      });
+    }
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} user`;
+  async remove(id: string) {
+    try {
+      await this.prisma.product.deleteMany({ where: { userId: id } });
+      await this.prisma.category.deleteMany({ where: { userId: id } });
+      await this.prisma.user.delete({ where: { id } });
+      return {
+        success: true,
+        erro: null,
+      };
+    } catch (e) {
+      throw new InternalServerErrorException({
+        success: false,
+        erro: e,
+      });
+    }
   }
 }
